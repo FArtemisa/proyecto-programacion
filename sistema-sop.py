@@ -91,3 +91,98 @@ class ReglaIMC(ReglaDiagnostico):
             'probabilidad': probabilidad,
             'detalles': f"IMC: {imc:.2f} ({'Alto riesgo' if cumple else 'Normal'})"
         }
+
+class ReglaHormonal(ReglaDiagnostico):
+    def __init__(self, peso=1.5):
+        super().__init__("Regla Hormonal", peso)
+    
+    def evaluar(self, paciente):
+        ratio_lh_fsh = paciente.calcular_ratio_lh_fsh()
+        
+        puntos = 0
+        if ratio_lh_fsh > 2:
+            puntos += 1
+        if paciente.testosterona > 50:
+            puntos += 1
+        if paciente.insulina > 20:
+            puntos += 1
+        
+        cumple = puntos >= 2
+        probabilidad = puntos / 3
+        
+        return {
+            'cumple': cumple,
+            'probabilidad': probabilidad,
+            'detalles': (f"LH/FSH: {ratio_lh_fsh:.2f}, Testosterona: {paciente.testosterona:.2f} ng/dL, "
+                        f"Insulina: {paciente.insulina:.2f} µU/mL ({puntos}/3 criterios)")
+        }
+
+
+class ReglaCiclo(ReglaDiagnostico):
+    def __init__(self, peso=1.2):
+        super().__init__("Regla Ciclo Menstrual", peso)
+    
+    def evaluar(self, paciente):
+        cumple = not paciente.ciclo_regular
+        probabilidad = 0.8 if cumple else 0.2
+        
+        return {
+            'cumple': cumple,
+            'probabilidad': probabilidad,
+            'detalles': f"Ciclo {'irregular (riesgo)' if cumple else 'regular (normal)'}"
+        }
+
+
+class EstrategiaCombinacion(ABC):
+    @abstractmethod
+    def combinar(self, resultados, pesos):
+        pass
+
+
+class PromedioPonderado(EstrategiaCombinacion):
+    def combinar(self, resultados, pesos):
+        if not resultados:
+            return 0.0
+        
+        suma_ponderada = sum(r['probabilidad'] * p for r, p in zip(resultados, pesos))
+        suma_pesos = sum(pesos)
+        
+        return suma_ponderada / suma_pesos if suma_pesos > 0 else 0.0
+
+
+class BayesSimple(EstrategiaCombinacion):
+    def combinar(self, resultados, pesos):
+        if not resultados:
+            return 0.0
+        
+        suma_pesos = sum(pesos)
+        probabilidad_no_sop = 1.0
+        
+        for resultado, peso in zip(resultados, pesos):
+            peso_norm = peso / suma_pesos if suma_pesos > 0 else 0
+            probabilidad_no_sop *= (1 - resultado['probabilidad'] * peso_norm)
+        
+        return 1 - probabilidad_no_sop
+
+
+class ReglaCompuesta(ReglaDiagnostico):
+    def __init__(self, reglas, estrategia, nombre="Regla Compuesta"):
+        super().__init__(nombre, peso=1.0)
+        self.reglas = reglas
+        self.estrategia = estrategia
+    
+    def evaluar(self, paciente):
+        resultados = [regla.evaluar(paciente) for regla in self.reglas]
+        pesos = [regla.peso for regla in self.reglas]
+        
+        probabilidad_final = self.estrategia.combinar(resultados, pesos)
+        cumple = probabilidad_final >= 0.5
+        
+        detalles = "\n    ".join([f"- {r['detalles']}" for r in resultados])
+        
+        return {
+            'cumple': cumple,
+            'probabilidad': probabilidad_final,
+            'detalles': f"Combinacion de {len(self.reglas)} reglas:\n    {detalles}",
+            'resultados_individuales': resultados
+        }
