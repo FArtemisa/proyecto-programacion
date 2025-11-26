@@ -88,4 +88,4 @@ Asegúrate de tener **Python 3** instalado.
 Ejecuta el archivo principal:
 
 ```bash
-python main.py
+python sistema-sop.py
