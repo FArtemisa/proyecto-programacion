@@ -186,3 +186,29 @@ class ReglaCompuesta(ReglaDiagnostico):
             'detalles': f"Combinacion de {len(self.reglas)} reglas:\n    {detalles}",
             'resultados_individuales': resultados
         }
+
+class MotorDiagnostico:
+    def __init__(self, regla_principal):
+        self.regla_principal = regla_principal
+    
+    def evaluar(self, paciente):
+        resultado = self.regla_principal.evaluar(paciente)
+        
+        diagnostico = {
+            'paciente': paciente.nombre_completo(),
+            'fecha': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'tiene_sop': resultado['cumple'],
+            'probabilidad': resultado['probabilidad'],
+            'detalles': resultado['detalles'],
+            'nivel_riesgo': self._clasificar_riesgo(resultado['probabilidad'])
+        }
+        
+        return diagnostico
+    
+    def _clasificar_riesgo(self, probabilidad):
+        if probabilidad >= 0.7:
+            return "ALTO"
+        elif probabilidad >= 0.4:
+            return "MEDIO"
+        else:
+            return "BAJO"
