@@ -212,3 +212,147 @@ class MotorDiagnostico:
             return "MEDIO"
         else:
             return "BAJO"
+
+# Menu del sistema
+class MenuSistema:
+    def __init__(self):
+        reglas = [
+            ReglaIMC(peso=1.0),
+            ReglaHormonal(peso=1.5),
+            ReglaCiclo(peso=1.2)
+        ]
+        estrategia = PromedioPonderado()
+        regla_compuesta = ReglaCompuesta(reglas, estrategia, "Diagnostico SOP Completo")
+        
+        self.motor = MotorDiagnostico(regla_compuesta)
+        self.medico = Medico("Dr. Juan", "Perez", 45, "MED001", "Ginecologia", "12345678")
+        self.pacientes_registrados = []
+    
+    def mostrar_menu(self):
+        print("SISTEMA DE PREDIAGNOSTICO DE SOP (Sindrome de Ovario Poliquistico)")
+        print("\n1. Registrar paciente manualmente")
+        print("2. Realizar diagnostico")
+        print("3. Ver pacientes registrados")
+        print("4. Cambiar estrategia de combinacion")
+        print("5. Salir")
+    
+    def ejecutar(self):
+        while True:
+            self.mostrar_menu()
+            opcion = input("\nSeleccione una opcion: ").strip()
+            
+            if opcion == "1":
+                self.registrar_paciente_manual()
+            elif opcion == "2":
+                self.realizar_diagnostico()
+            elif opcion == "3":
+                self.ver_pacientes()
+            elif opcion == "4":
+                self.cambiar_estrategia()
+            elif opcion == "5":
+                print("\nGracias por usar el sistema. Hasta pronto.\n")
+                break
+            else:
+                print("\nOpcion no valida. Intente de nuevo.")
+    
+    def registrar_paciente_manual(self):
+        print("\n--- REGISTRO MANUAL DE PACIENTE ---")
+        try:
+            nombre = input("Nombre: ").strip()
+            apellido = input("Apellido: ").strip()
+            edad = int(input("Edad: "))
+            id = input("id: ").strip()
+            peso = float(input("Peso (kg): "))
+            altura = float(input("Altura (m): "))
+            ciclo = input("Ciclo menstrual regular? (s/n): ").strip().lower() == 's'
+            lh = float(input("Nivel LH (mIU/mL): "))
+            fsh = float(input("Nivel FSH (mIU/mL): "))
+            testosterona = float(input("Testosterona (ng/dL): "))
+            insulina = float(input("Insulina (µU/mL): "))
+            
+            paciente = Paciente(nombre, apellido, edad, id,
+                              peso, altura, ciclo, lh, fsh, testosterona, insulina)
+            self.pacientes_registrados.append(paciente)
+            
+            print(f"\nPaciente {paciente.nombre_completo()} registrado exitosamente.")
+        except ValueError:
+            print("\nError: Datos invalidos. Intente de nuevo.")
+    
+    def realizar_diagnostico(self):
+        if not self.pacientes_registrados:
+            print("\nNo hay pacientes registrados. Registre uno primero.")
+            return
+        
+        print("\n--- PACIENTES DISPONIBLES ---")
+        for i, p in enumerate(self.pacientes_registrados, 1):
+            print(f"{i}. {p.nombre_completo()} (ID: {p.id})")
+        
+        try:
+            seleccion = int(input("\nSeleccione numero de paciente: ")) - 1
+            paciente = self.pacientes_registrados[seleccion]
+            
+            print(f"\nRealizando diagnostico para {paciente.nombre_completo()}...")
+            resultado = self.medico.diagnosticar(paciente, self.motor)
+            
+            print("\n" + "="*60)
+            print("  RESULTADO DEL DIAGNOSTICO")
+            print("="*60)
+            print(f"Paciente: {resultado['paciente']}")
+            print(f"Fecha: {resultado['fecha']}")
+            print(f"Diagnostico: {'SOP DETECTADO' if resultado['tiene_sop'] else 'NO SE DETECTO SOP'}")
+            print(f"Probabilidad: {resultado['probabilidad']*100:.1f}%")
+            print(f"Nivel de riesgo: {resultado['nivel_riesgo']}")
+            print(f"\nDetalles:\n{resultado['detalles']}")
+            print("="*60)
+            
+        except (ValueError, IndexError):
+            print("\nSeleccion invalida.")
+    
+    def ver_pacientes(self):
+        if not self.pacientes_registrados:
+            print("\nNo hay pacientes registrados.")
+            return
+        
+        print("\n--- PACIENTES REGISTRADOS ---")
+        for i, p in enumerate(self.pacientes_registrados, 1):
+            print(f"\n{i}. {p}")
+            if p.diagnostico:
+                print(f"   Diagnostico: {'SOP' if p.diagnostico['tiene_sop'] else 'No SOP'} "
+                      f"(Prob: {p.diagnostico['probabilidad']*100:.1f}%)")
+    
+    def cambiar_estrategia(self):
+        print("\n--- ESTRATEGIAS DISPONIBLES ---")
+        print("1. Promedio Ponderado")
+        print("2. Bayes Simple")
+        
+        opcion = input("\nSeleccione estrategia: ").strip()
+        
+        reglas = [
+            ReglaIMC(peso=1.0),
+            ReglaHormonal(peso=1.5),
+            ReglaCiclo(peso=1.2)
+        ]
+        
+        if opcion == "1":
+            estrategia = PromedioPonderado()
+            nombre = "Promedio Ponderado"
+        elif opcion == "2":
+            estrategia = BayesSimple()
+            nombre = "Bayes Simple"
+        else:
+            print("\nOpcion no valida.")
+            return
+        
+        regla_compuesta = ReglaCompuesta(reglas, estrategia, f"Diagnostico SOP ({nombre})")
+        self.motor = MotorDiagnostico(regla_compuesta)
+        
+        print(f"\nEstrategia cambiada a: {nombre}")
+
+
+def main():
+    menu = MenuSistema()
+    menu.ejecutar()
+
+
+if __name__ == "__main__":
+    main()
